@@ -1,37 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Hello WebSocket</title>
+  <title>Real-Time Clock</title>
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
   <script src="/app.js"></script>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-  <link href="/main.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
 </head>
 <body>
-<div id="main-content" class="container">
+<div class="container">
   <div class="row">
     <div class="col-md-6">
-      <form class="form-inline">
-        <div class="form-group">
-          <label for="connect">WebSocket connection:</label>
-          <button id="connect" class="btn btn-default" type="submit">Connect</button>
-          <button id="disconnect" class="btn btn-default" type="submit" disabled="disabled">Disconnect</button>
-          </div>
-                </form>
+      <button id="connect" class="btn btn-default">Connect</button>
+      <button id="disconnect" class="btn btn-default" disabled>Disconnect</button>
     </div>
   </div>
   <div class="row">
     <div class="col-md-6">
-      <form class="form-inline">
-        <label for="time">Time</label>
-        <input type="text" id="time" class="form-control" readonly>
-      </form>
+      <label for="time">Time:</label>
+      <input type="text" id="time" class="form-control" readonly>
     </div>
   </div>
 </div>
+<script>
+  let stompClient = null;
 
+  function connect() {
+    const socket = new SockJS('/gs-guide-websocket');
+    stompClient = new StompJs.Client({
+      brokerURL: 'ws://localhost:8080/gs-guide-websocket'
+    });
 
+    stompClient.onConnect = (frame) => {
+      console.log('Connected: ' + frame);
+      $("#connect").prop("disabled", true);
+      $("#disconnect").prop("disabled", false);
+      stompClient.subscribe('/topic/time', function (response) {
+        console.log(response.body);
+        $('#time').val(response.body);
+      });
+    };
+
+    stompClient.onWebSocketError = (error) => {
+      console.error('Error with websocket', error);
+    };
+
+    stompClient.onStompError = (frame) => {
+      console.error('Broker reported error: ' + frame.headers['message']);
+      console.error('Additional details: ' + frame.body);
+    };
+
+    stompClient.activate();
+  }
+
+  function disconnect() {
+    if (stompClient !== null) {
+      stompClient.webSocket.close();
+      stompClient = null;
+      console.log("Disconnected");
+      $("#connect").prop("disabled", false);
+      $("#disconnect").prop("disabled", true);
+    }
+  }
+
+  $(function () {
+    $("#connect").click(connect);
+    $("#disconnect").click(disconnect);
+  });
+</script>
 </body>
 </html>
